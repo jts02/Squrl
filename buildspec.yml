@@ -1,0 +1,17 @@
+phases:
+  install:
+    commands:
+      - echo install stuff
+
+  pre_build:
+    commands:
+      - aws configure set default.region $AWS_REGION
+      - chmod 755 scripts/*.sh
+
+  build:
+    commands:
+      - echo build and/or test stuff
+
+  post_build:
+    commands:
+      - scripts/deploy.sh
