@@ -10,8 +10,8 @@ def squrlify(url, path="squrl", size=7):
     Get the shortened path for the url.
     """
     digest = hashlib.md5(url.encode()).hexdigest()
-    # TODO check for collision
-    return f"{path}/{digest[:size]}"
+    url_id = digest[:size]
+    return f"{path}/{url_id}"
 
 
 def respond(err, res=None):
