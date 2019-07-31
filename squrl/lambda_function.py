@@ -1,4 +1,5 @@
 """Squrl lambda function."""
+import datetime
 import hashlib
 import json
 import os
@@ -27,7 +28,7 @@ class Squrl:
 
         return True
 
-    def get_key(self, url, length=7):
+    def get_key(self, url, length=7, days=7):
         """
         Get the shortened path for the url prefixed with 'u/'.
 
@@ -36,6 +37,7 @@ class Squrl:
         Raise ValueError - Key exists if all possible keys with this
         hexdigest already exist.
         """
+        expires = datetime.datetime.now() + datetime.timedelta(days=days)
         digest = hashlib.md5(url.encode()).hexdigest()
         key = None
 
@@ -49,7 +51,9 @@ class Squrl:
                 self.client.put_object(
                     Bucket=self.bucket,
                     Key=key,
-                    WebsiteRedirectLocation=url
+                    WebsiteRedirectLocation=url,
+                    Expires=expires,
+                    ContentType="text/plain"
                 )
                 return key
 

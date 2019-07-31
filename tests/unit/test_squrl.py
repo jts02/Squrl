@@ -22,7 +22,11 @@ def test_get_key_success():
         "put_object",
         {"VersionId": "1"},
         expected_params={
-            "Bucket": bucket, "Key": ANY, "WebsiteRedirectLocation": url
+            "Bucket": bucket,
+            "Key": ANY,
+            "WebsiteRedirectLocation": url,
+            "Expires": ANY,
+            "ContentType": "text/plain"
         }
     )
     stub.activate()
