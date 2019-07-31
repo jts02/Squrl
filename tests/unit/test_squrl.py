@@ -9,37 +9,44 @@ from squrl import Squrl
 
 def test_get_key_success():
     client = boto3.client("s3")
-    stubber = Stubber(client)
+    stub = Stubber(client)
     bucket = "test-bucket"
     url = "https://fake.example.com"
 
-    stubber.add_client_error(
+    stub.add_client_error(
         "head_object",
         expected_params={"Bucket": bucket, "Key": ANY},
         service_error_code="404"
     )
-    stubber.activate()
+    stub.add_response(
+        "put_object",
+        {"VersionId": "1"},
+        expected_params={
+            "Bucket": bucket, "Key": ANY, "WebsiteRedirectLocation": url
+        }
+    )
+    stub.activate()
 
     squrl = Squrl(client, bucket)
     key = squrl.get_key(url)
 
     assert key and key.startswith("u/")
-    stubber.assert_no_pending_responses()
+    stub.assert_no_pending_responses()
 
 
 def test_get_key_failure():
     client = boto3.client("s3")
-    stubber = Stubber(client)
+    stub = Stubber(client)
     bucket = "test-bucket"
     url = "https://fake.example.com"
 
     for _ in range(3):
-        stubber.add_response(
+        stub.add_response(
             "head_object",
             expected_params={"Bucket": bucket, "Key": ANY},
             service_response={}
         )
-    stubber.activate()
+    stub.activate()
 
     with raises(ValueError):
         Squrl(client, bucket).get_key(url, length=30)
@@ -54,7 +61,7 @@ def response():
 
 
 def test_response_successful(response):
-    actual_response = Squrl.respond(response=response)
+    actual_response = Squrl.get_response(response=response)
     expected_response = {
         "statusCode": "200",
         "body": json.dumps(response),
@@ -72,7 +79,7 @@ def error():
 
 
 def test_response_failed():
-    actual_response = Squrl.respond(error=error)
+    actual_response = Squrl.get_response(error=error)
     expected_response = {
         "statusCode": "400",
         "body": str(error),

@@ -46,6 +46,11 @@ class Squrl:
             key = f"u/{digest[i:i+length]}"
 
             if not self.key_exists(key):
+                self.client.put_object(
+                    Bucket=self.bucket,
+                    Key=key,
+                    WebsiteRedirectLocation=url
+                )
                 return key
 
         raise ValueError(f"Key exists: {key}")
@@ -67,7 +72,7 @@ class Squrl:
 
 def handler(event, context):
     """Handle the lambda function event and return a response."""
-    squrl = Squrl(boto3.client("s3"), os.getenv("S3_BUCKET", "amber-zzz"))
+    squrl = Squrl(boto3.client("s3"), os.getenv("S3_BUCKET"))
     url = event["queryStringParameters"]["url"]
     key = squrl.get_key(url, length=7)
 
