@@ -28,40 +28,30 @@ class Squrl:
 
         return True
 
-    def get_key(self, url, length=7, days=7):
-        """
-        Get the shortened path for the url prefixed with 'u/'.
-
-        Raise ValueError - Invalid key length if the length is less than 1
-        or greater than the length of the hexdigest.
-        Raise ValueError - Key exists if all possible keys with this
-        hexdigest already exist.
-        """
-        expires = datetime.datetime.now() + datetime.timedelta(days=days)
+    @staticmethod
+    def get_key(url):
+        """Get a short key for the url prefixed with 'u/' plus 7 characters."""
         digest = hashlib.md5(url.encode()).hexdigest()
-        key = None
+        return f"u/{digest[:7]}"
 
-        if length < 1 or length > len(digest):
-            raise ValueError(f"Invalid key length: {length}")
+    def create_key(self, url, days=7):
+        """Create the short key object with an expiration and redirect."""
+        expires = datetime.datetime.now() + datetime.timedelta(days=days)
+        key = self.get_key(url)
 
-        for i in range(len(digest) - length + 1):
-            key = f"u/{digest[i:i+length]}"
+        self.client.put_object(
+            Bucket=self.bucket,
+            Key=key,
+            WebsiteRedirectLocation=url,
+            Expires=expires,
+            ContentType="text/plain"
+        )
 
-            if not self.key_exists(key):
-                self.client.put_object(
-                    Bucket=self.bucket,
-                    Key=key,
-                    WebsiteRedirectLocation=url,
-                    Expires=expires,
-                    ContentType="text/plain"
-                )
-                return key
-
-        raise ValueError(f"Key exists: {key}")
+        return key
 
     @staticmethod
     def get_response(response="OK", error=None):
-        """Get a poper, formatted response."""
+        """Get a proper, formatted response."""
         statusCode = "400" if error else "200"
         body = str(error) if error else json.dumps(response)
 
@@ -78,6 +68,11 @@ def handler(event, context):
     """Handle the lambda function event and return a response."""
     squrl = Squrl(boto3.client("s3"), os.getenv("S3_BUCKET"))
     url = event["queryStringParameters"]["url"]
-    key = squrl.get_key(url, length=7)
+
+    # TODO
+    # GET
+    key = squrl.get_key(url)
+    # POST
+    # key = squrl.create_key(url)
 
     return squrl.respond({"url": url, "key": key})
