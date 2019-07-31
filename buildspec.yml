@@ -1,7 +1,7 @@
 phases:
   install:
     commands:
-      - echo install stuff
+      - pip install pycodestyle pydocstyle pytest
 
   pre_build:
     commands:
@@ -10,7 +10,9 @@ phases:
 
   build:
     commands:
-      - echo build and/or test stuff
+      - pycodestyle squrl
+      - pydocstyle squrl
+      - pytest
 
   post_build:
     commands:

@@ -1,8 +1,48 @@
 import json
 
-from pytest import fixture
+import boto3
+from botocore.stub import Stubber, ANY
+from pytest import fixture, raises
 
-import squrl
+from squrl import Squrl
+
+
+def test_get_key_success():
+    client = boto3.client("s3")
+    stubber = Stubber(client)
+    bucket = "test-bucket"
+    url = "https://fake.example.com"
+
+    stubber.add_client_error(
+        "head_object",
+        expected_params={"Bucket": bucket, "Key": ANY},
+        service_error_code="404"
+    )
+    stubber.activate()
+
+    squrl = Squrl(client, bucket)
+    key = squrl.get_key(url)
+
+    assert key and key.startswith("u/")
+    stubber.assert_no_pending_responses()
+
+
+def test_get_key_failure():
+    client = boto3.client("s3")
+    stubber = Stubber(client)
+    bucket = "test-bucket"
+    url = "https://fake.example.com"
+
+    for _ in range(3):
+        stubber.add_response(
+            "head_object",
+            expected_params={"Bucket": bucket, "Key": ANY},
+            service_response={}
+        )
+    stubber.activate()
+
+    with raises(ValueError):
+        Squrl(client, bucket).get_key(url, length=30)
 
 
 @fixture(scope="function")
@@ -14,13 +54,31 @@ def response():
 
 
 def test_response_successful(response):
-    actual_response = squrl.respond(response)
+    actual_response = Squrl.respond(response=response)
     expected_response = {
         "statusCode": "200",
         "body": json.dumps(response),
         "headers": {
-            "Content-Type": "application/json",
-        },
+            "Content-Type": "application/json"
+        }
+    }
+
+    assert actual_response == expected_response
+
+
+@fixture(scope="function")
+def error():
+    return ValueError("The error")
+
+
+def test_response_failed():
+    actual_response = Squrl.respond(error=error)
+    expected_response = {
+        "statusCode": "400",
+        "body": str(error),
+        "headers": {
+            "Content-Type": "application/json"
+        }
     }
 
     assert actual_response == expected_response
