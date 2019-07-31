@@ -102,3 +102,56 @@ def test_get_response_error():
     actual_response = Squrl.get_response(error=error)
 
     assert expected_response == actual_response
+
+
+def test_get_method_key_exists(stubber):
+    expected_params = {
+        "Bucket": ANY,
+        "Key": ANY
+    }
+
+    stubber["stub"].add_response(
+        "head_object", {}, expected_params=expected_params
+    )
+    stubber["stub"].activate()
+
+    squrl = Squrl(stubber["stub"].client, "test-bucket")
+
+    assert squrl.registry["GET"]("test-url")
+
+
+def test_get_method_key_does_not_exist(stubber):
+    expected_params = {
+        "Bucket": ANY,
+        "Key": ANY
+    }
+
+    stubber["stub"].add_client_error(
+        "head_object",
+        expected_params=expected_params,
+        service_error_code="404"
+    )
+    stubber["stub"].activate()
+
+    squrl = Squrl(stubber["stub"].client, "test-bucket")
+
+    assert not squrl.registry["GET"]("test-url")
+
+
+def test_post_method(stubber):
+    expected_params = {
+        "Bucket": ANY,
+        "Key": ANY,
+        "WebsiteRedirectLocation": ANY,
+        "Expires": ANY,
+        "ContentType": ANY
+    }
+
+    stubber["stub"].add_response(
+        "put_object", {}, expected_params=expected_params
+    )
+    stubber["stub"].activate()
+
+    squrl = Squrl(stubber["stub"].client, "test-bucket")
+
+    assert squrl.registry["POST"]("test-url")

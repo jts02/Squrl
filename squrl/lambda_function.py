@@ -15,6 +15,17 @@ class Squrl:
         """Override init."""
         self.client = client
         self.bucket = bucket
+        self.registry = {"GET": self.get, "POST": self.post}
+
+    def get(self, url, **kwargs):
+        """Return a key if one exists."""
+        key = self.get_key(url)
+
+        return key if self.key_exists(key) else ""
+
+    def post(self, url, **kwargs):
+        """Create or update key."""
+        return self.create_key(url, **kwargs)
 
     def key_exists(self, key):
         """Return True if the specified key exists."""
@@ -65,14 +76,21 @@ class Squrl:
 
 
 def handler(event, context):
-    """Handle the lambda function event and return a response."""
+    """
+    Handle the lambda function event and return a response with
+    a body containing the url and the key, if it exists.
+
+    response body: '{"url": <string>, "key": <string>}'
+    """
     squrl = Squrl(boto3.client("s3"), os.getenv("S3_BUCKET"))
     url = event["queryStringParameters"]["url"]
+    method = event["httpMethod"]
 
-    # TODO
-    # GET
-    key = squrl.get_key(url)
-    # POST
-    # key = squrl.create_key(url)
+    if method in squrl.registry.keys():
+        key = squrl.registry[method](url)
 
-    return squrl.respond({"url": url, "key": key})
+        return squrl.get_response(response={"url": url, "key": key})
+    else:
+        error = ValueError(f"Unsupported method: {method}")
+
+        return squrl.get_response(error=error)
