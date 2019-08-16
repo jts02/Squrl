@@ -1,0 +1,8 @@
+action: py37, msg: getenv
+cwd: /Users/jacobtie-shue/Desktop/Projects/Squrl/.tox
+cmd: /anaconda3/bin/python -m virtualenv --no-download --python /anaconda3/bin/python py37
+Already using interpreter /anaconda3/bin/python
+Using base prefix '/anaconda3'
+New python executable in /Users/jacobtie-shue/Desktop/Projects/Squrl/.tox/py37/bin/python
+Installing setuptools, pip, wheel...
+done.
