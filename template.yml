@@ -1,0 +1,128 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+Description: Squrl SAM Template
+
+Globals:
+  Function:
+    Timeout: 3
+
+Parameters:
+  ApiVersionParameter:
+    Description: The Api deployment stage and lambda alias
+    Type: String
+    Default: v1
+
+  S3BucketParamter:
+    Description: S3 Bucket
+    Type: String
+    Default: www.squrl.com
+    
+Resources:
+  SqurlCloudFrontOriginAccessIdentity:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: !Sub CloudFront origin access identity for ${S3BucketParameter}
+
+  SqurlS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref S3BucketParameter
+      VersioningConfiguration:
+        Status: Enabled
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: error.html
+
+  SqurlS3BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref SqurlS3Bucket
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject
+            Effect: Allow
+            Resource: !Sub arn:aws:s3:::${SqurlS3Bucket}/*
+            Principal:
+              CanonicalUser: !GetAtt SqurlCloudFrontOriginAccessIdentity.S3CanonicalUserId
+
+
+  SqurlApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref ApiVersionParameter
+
+  SqurlApiLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      AutoPublishAlias: !Ref ApiVersionParameter
+      Handler: squrl.handler
+      Runtime: python3.7
+      CodeUri: squrl
+      Policies:
+       - S3CrudPolicy:
+          BucketName: !Ref S3BucketParameter
+      Environment:
+        Variables:
+          S3_BUCKET: !Ref S3BucketParameter
+      
+      Events:
+        GetUrl:
+          Type: Api
+          Properties:
+            RestApiId: !Ref SqurlApi
+            Method: get
+            Path: /url
+        PostUrl:
+          Type: Api
+          Properties:
+            RestApiId: !Ref SqurlApi
+            Method: post
+            Path: /url
+  
+  SqurlCloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        DefaultCacheBehavior:
+        ForwardedValues:
+          QueryString: true
+        TargetOriginId: !Ref S3BucketParameter
+        ViewerProtocolPolicy: redirect-to-https
+      DefaultRootObject: index.html
+      CustomErrorResponses:
+        - ErrorCode: 403
+          ResponseCode: 404
+          ResponsePagePath: /error.html
+      Enabled: true
+      HttpVersion: http2
+      Origins:
+        - DomainName: !GetAtt SqurlS3Bucket.DomainName
+          Id: !Ref S3BucketParameter
+          S3OriginConfig:
+            OriginAccessIdentity: !Sub origin-access-identity/cloudfront/${SqurlCloudFrontOriginAccessIdentity}
+
+Outputs:
+  SqurlApi:
+    Description: Api Gateway Endpoint Url
+    Value: !Sub https://${SqurlApi}.execute-api.${AWS::Region}.amazonaws.com/${ApiVersionParameter}/
+
+  SqurlApiLambda:
+    Description: Squrl Lambda Function Arn
+    Value: !GetAtt SqurlApiLambda.Arn
+
+  SqurlS3Bucket:
+    Description: Squrl S3 Bucket
+    Value: !Ref S3BucketParameter
+
+    Description: Squrl S3 Bucket Url
+    Value: !GetAtt SqurlS3Bucket.DomainName
+
+  SqurlCloudFrontDistribution:
+    Description: Squrl CloudFront Distribution Id
+    Value: !Ref SqurlCloudFrontDistribution
+
+  SqurlCloudFrontDomainName:
+    Description: Squrl CloudFront Distribution Domain Name
+    Value: !GetAtt SqurlCloudFrontDistribution.DomainName
